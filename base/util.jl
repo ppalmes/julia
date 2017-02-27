@@ -414,13 +414,13 @@ Print strings in a color specified as a symbol.
 or an integer between 0 and 255 inclusive. Note that not all terminals support 256 colors.
 If the keyword `bold` is given as `true`, the result will be printed in bold.
 """
-print_with_color(color::Union{Int, Symbol}, io::IO, msg::AbstractString...; bold::Bool = false) =
+print_with_color(color::Union{Int, Symbol}, io::IO, msg...; bold::Bool = false) =
     with_output_color(print, color, io, msg...; bold = bold)
-print_with_color(color::Union{Int, Symbol}, msg::AbstractString...; bold::Bool = false) =
+print_with_color(color::Union{Int, Symbol}, msg...; bold::Bool = false) =
     print_with_color(color, STDOUT, msg...; bold = bold)
-println_with_color(color::Union{Int, Symbol}, io::IO, msg::AbstractString...; bold::Bool = false) =
+println_with_color(color::Union{Int, Symbol}, io::IO, msg...; bold::Bool = false) =
     with_output_color(println, color, io, msg...; bold = bold)
-println_with_color(color::Union{Int, Symbol}, msg::AbstractString...; bold::Bool = false) =
+println_with_color(color::Union{Int, Symbol}, msg...; bold::Bool = false) =
     println_with_color(color, STDOUT, msg...; bold = bold)
 
 ## warnings and messages ##

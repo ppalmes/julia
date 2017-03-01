@@ -408,11 +408,13 @@ The following examples show the different forms.
 
     julia> Int8(3.14)
     ERROR: InexactError()
+     in convert(::Type{Int8}, ::Float64) at ./float.jl:472
      in Int8(::Float64) at ./sysimg.jl:53
      ...
 
     julia> Int8(128.0)
     ERROR: InexactError()
+     in convert(::Type{Int8}, ::Float64) at ./float.jl:472
      in Int8(::Float64) at ./sysimg.jl:53
      ...
 
@@ -427,7 +429,7 @@ The following examples show the different forms.
 
     julia> round(Int8,127.6)
     ERROR: InexactError()
-     in trunc(::Type{Int8}, ::Float64) at ./float.jl:458
+     in trunc(::Type{Int8}, ::Float64) at ./float.jl:465
      in round(::Type{Int8}, ::Float64) at ./float.jl:211
      ...
 

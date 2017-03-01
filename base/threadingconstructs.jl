@@ -54,7 +54,7 @@ function _threadsfor(iter,lbody)
                 $(esc(lbody))
             end
         end
-        ccall(:jl_threading_run, Void, (Any,), Core.svec($fun))
+        Core.threading_run($fun)
     end
 end
 """

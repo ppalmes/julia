@@ -32,6 +32,23 @@ extern "C" {
 
 #include "timing.h"
 
+#ifdef _COMPILER_MICROSOFT_
+#  define jl_return_address() ((uintptr_t)_ReturnAddress())
+#else
+#  define jl_return_address() ((uintptr_t)__builtin_return_address(0))
+#endif
+
+STATIC_INLINE uint32_t jl_int32hash_fast(uint32_t a)
+{
+//    a = (a+0x7ed55d16) + (a<<12);
+//    a = (a^0xc761c23c) ^ (a>>19);
+//    a = (a+0x165667b1) + (a<<5);
+//    a = (a+0xd3a2646c) ^ (a<<9);
+//    a = (a+0xfd7046c5) + (a<<3);
+//    a = (a^0xb55a4f09) ^ (a>>16);
+    return a;  // identity hashing seems to work well enough here
+}
+
 #define GC_CLEAN  0 // freshly allocated
 #define GC_MARKED 1 // reachable and young
 #define GC_OLD    2 // if it is reachable it will be marked as old
@@ -307,6 +324,7 @@ JL_DLLEXPORT void jl_typeassert(jl_value_t *x, jl_value_t *t);
 JL_CALLABLE(jl_unprotect_stack);
 JL_CALLABLE(jl_f_tuple);
 JL_CALLABLE(jl_f_intrinsic_call);
+JL_CALLABLE(jl_f_threading_run);
 extern jl_function_t *jl_unprotect_stack_func;
 void jl_install_default_signal_handlers(void);
 void restore_signals(void);
@@ -373,6 +391,7 @@ jl_method_instance_t *jl_method_lookup_by_type(jl_methtable_t *mt, jl_tupletype_
                                                int cache, int inexact, int allow_exec, size_t world);
 jl_method_instance_t *jl_method_lookup(jl_methtable_t *mt, jl_value_t **args, size_t nargs, int cache, size_t world);
 jl_value_t *jl_gf_invoke(jl_tupletype_t *types, jl_value_t **args, size_t nargs);
+jl_method_instance_t *jl_lookup_generic(jl_value_t **args, uint32_t nargs, uint32_t callsite, size_t world);
 
 JL_DLLEXPORT jl_datatype_t *jl_first_argument_datatype(jl_value_t *argtypes);
 jl_datatype_t *jl_argument_datatype(jl_value_t *argt);

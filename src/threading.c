@@ -307,11 +307,11 @@ static void ti_init_master_thread(void)
 }
 
 // all threads call this function to run user code
-static jl_value_t *ti_run_fun(jl_svec_t *args)
+static jl_value_t *ti_run_fun(jl_method_instance_t *mfunc, jl_value_t **args, uint32_t nargs)
 {
     jl_ptls_t ptls = jl_get_ptls_states();
     JL_TRY {
-        jl_apply(jl_svec_data(args), jl_svec_len(args));
+        jl_call_method_internal(mfunc, args, nargs);
     }
     JL_CATCH {
         return ptls->exception_in_transit;
@@ -406,7 +406,7 @@ void ti_threadfun(void *arg)
                 JL_GC_PUSH1(&last_m);
                 ptls->current_module = work->current_module;
                 ptls->world_age = work->world_age;
-                ti_run_fun(work->args);
+                ti_run_fun(work->mfunc, work->args, work->nargs);
                 ptls->current_module = last_m;
                 ptls->world_age = last_age;
                 JL_GC_POP();
@@ -648,9 +648,7 @@ void jl_shutdown_threading(void)
 // return thread's thread group
 JL_DLLEXPORT void *jl_threadgroup(void) { return (void *)tgworld; }
 
-// interface to user code: specialize and compile the user thread function
-// and run it in all threads
-JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
+JL_CALLABLE(jl_f_threading_run)
 {
     jl_ptls_t ptls = jl_get_ptls_states();
     // GC safe
@@ -658,18 +656,13 @@ JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
     uint64_t tstart = uv_hrtime();
 #endif
 
-    jl_tupletype_t *argtypes = NULL;
-    JL_TYPECHK(jl_threading_run, simplevector, (jl_value_t*)args);
-
     int8_t gc_state = jl_gc_unsafe_enter(ptls);
-    JL_GC_PUSH1(&argtypes);
-    argtypes = arg_type_tuple(jl_svec_data(args), jl_svec_len(args));
-    jl_compile_hint(argtypes);
 
     threadwork.command = TI_THREADWORK_RUN;
-    // TODO jb/functions: lookup and store jlcall fptr here
-    threadwork.fun = NULL;
+    threadwork.mfunc = jl_lookup_generic(args, nargs,
+                                         jl_int32hash_fast(jl_return_address()), ptls->world_age);
     threadwork.args = args;
+    threadwork.nargs = nargs;
     threadwork.ret = jl_nothing;
     threadwork.current_module = ptls->current_module;
     threadwork.world_age = ptls->world_age;
@@ -689,7 +682,7 @@ JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
 #endif
 
     // this thread must do work too (TODO: reduction?)
-    tw->ret = ti_run_fun(args);
+    tw->ret = ti_run_fun(threadwork.mfunc, args, nargs);
 
 #if PROFILE_JL_THREADING
     uint64_t trun = uv_hrtime();
@@ -704,7 +697,6 @@ JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
     join_ns[ptls->tid] += (tjoin - trun);
 #endif
 
-    JL_GC_POP();
     jl_gc_unsafe_leave(ptls, gc_state);
 
     return tw->ret;
@@ -766,10 +758,11 @@ JL_DLLEXPORT void jl_threading_profile(void)
 
 #else // !JULIA_ENABLE_THREADING
 
-JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
+JL_CALLABLE(jl_f_threading_run)
 {
-    JL_TYPECHK(jl_threading_run, simplevector, (jl_value_t*)args);
-    return ti_run_fun(args);
+    return ti_run_fun(jl_lookup_generic(args, nargs,
+                                        jl_int32hash_fast(jl_return_address()),
+                                        jl_get_ptls_states()->world_age), args, nargs);
 }
 
 void jl_init_threading(void)
@@ -789,6 +782,14 @@ void jl_start_threads(void) { }
 JL_DLLEXPORT int jl_alignment(size_t sz)
 {
     return jl_gc_alignment(sz);
+}
+
+// interface to user code: specialize and compile the user thread function
+// and run it in all threads
+JL_DLLEXPORT jl_value_t *jl_threading_run(jl_svec_t *args)
+{
+    JL_TYPECHK(jl_threading_run, simplevector, (jl_value_t*)args);
+    return jl_f_threading_run(NULL, (jl_value_t**)jl_svec_data(args), jl_svec_len(args));
 }
 
 #ifdef __cplusplus

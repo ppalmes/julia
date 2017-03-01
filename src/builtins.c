@@ -1091,6 +1091,7 @@ void jl_init_primitives(void)
     add_builtin_func("_apply_pure", jl_f__apply_pure);
     add_builtin_func("_expr", jl_f__expr);
     add_builtin_func("svec", jl_f_svec);
+    add_builtin_func("threading_run", jl_f_threading_run);
 
     // builtin types
     add_builtin("Any", (jl_value_t*)jl_any_type);
